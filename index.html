@@ -31,7 +31,13 @@
   <div>how many? <div id="count">0</div></div>
 
   <script src="https://js.pusher.com/7.0/pusher.min.js"></script>
+  <script src="airtable.browser.js"></script>   <!-- local script, from GitHub; not on any CDN so far as I know. -->
+  
   <script>
+    var Airtable = require('airtable');
+    var myAirtableBase = new Airtable({ apiKey: "keyi28jqNLFuDVE7Y" })
+      .base("appdjqTOHhGnUgpqw");
+
     const pusher = new Pusher('be9aea48efe85da61071', {
       cluster: 'us3',
       encrypted: true
@@ -53,6 +59,54 @@
       // Make Ajax call with JavaScript Fetch API
       fetch(`/vote?item_id=${vote_id}`)
           .catch( e => { console.log(e); });
+
+      // davidk DEBUG:
+      const theRecordId = "recn5RiB4iyojSCOz";    // discover this Id by first fetching the record by Name, or something.
+      fetchAnAirtableRecord(theRecordId);
+    }
+
+    function fetchAnAirtableRecord(theRecordId)
+    {
+      let retval;
+
+      const theTable = myAirtableBase("Hey");
+
+      theTable.find(theRecordId, function onSuccess(err, theRecord) {
+        if (err) {
+          retval = null;
+        }
+        else
+        {
+          retval = theRecord;
+        }
+
+        incrementAirtableRecord(retval);
+      });
+    }
+
+    function incrementAirtableRecord(aRecord) {
+      if (aRecord) {
+
+        // davidk DEBUG:
+        // console.log(aRecord);
+
+        let theCurrentLikes = aRecord.fields["Likes"];  // should be integer already - no need to parse
+
+        ++theCurrentLikes;
+
+        aRecord.patchUpdate({"Likes": theCurrentLikes}, function(err, success) {
+          if (err) {
+            console.log(err);
+          }
+          else {
+            console.log(`OK, all good: new value for "${aRecord.fields['Name']}" = ${theCurrentLikes}.`);
+          }
+        });
+
+      }
+      else {
+        console.error("Couldn't find a record.");
+      }
     }
 
     // // IIFE - Executes on page load
@@ -65,11 +119,11 @@
     // IIFE - Executes on page load
     // Let's update the counter on connection........
     (function() {
-        pusher.connection.bind("connected", function () {
-            let blah = document.querySelector(`#count`),
-                counts = parseInt(blah.innerText);
-
-            blah.innerText = counts + 1;
+        channel.bind("pusher:subscription_succeeded", () => {
+          console.log('client.id ? ', client.id);
+          let blah = document.querySelector("#count"),
+            counts = parseInt(blah.innerText);
+          blah.innerText = counts + 1;
         })
     })();
   </script>
